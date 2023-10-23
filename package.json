@@ -2,6 +2,10 @@
   "name": "segment-code",
   "displayName": "segment-code",
   "description": "It moves the selected part into a new window where you can edit it and it will update too in the original code realtime.",
+  "icon": "icon.png",
+  "repository": {
+    "url": "https://github.com/SaidTorres3/segment-code"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.83.0"

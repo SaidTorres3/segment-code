@@ -1,71 +1,39 @@
-# segment-code README
+# Code Extractor
 
-This is the README for your extension "segment-code". After writing up a brief description, we recommend including the following sections.
+![Code Extractor Logo](https://raw.githubusercontent.com/SaidTorres3/segment-code/main/icon.png)
+
+## Overview
+
+The **Code Extractor** is a powerful Visual Studio Code extension designed to streamline your coding workflow by simplifying the process of extracting and editing code portions. It provides a dedicated, synchronized tab where you can effortlessly work on extracted code segments, all while maintaining real-time synchronization with their original sources. This extension is ideal for code manipulation, refactoring, and enhancing your overall coding efficiency.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Effortless Code Extraction**: Select and extract code sections from your source code effortlessly with a single click or keyboard shortcut.
+- **Synchronized Editing**: Experience real-time synchronization between the extracted code and its original source. Any changes made in the extracted code tab are immediately reflected in the source file.
+- **Enhanced Refactoring**: Easily refactor your code by extracting methods, functions, or classes into separate tabs for focused editing.
+- **Improved Code Management**: Keep your code organized by isolating and working on specific code segments without losing context.
 
-For example if there is an image subfolder under your extension project workspace:
+## Getting Started
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Install the **Code Extractor** extension from the Visual Studio Code Marketplace.
+2. Open your desired project in Visual Studio Code.
+3. Select the code portion you want to extract.
+4. Right-click and choose "Separate Code" from the context menu, or use the predefined keyboard shortcut.
+5. A synchronized tab will open with the extracted code. Make your edits, and they will instantly reflect in the source file.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Configuration
 
-## Requirements
+You can customize the behavior of the **Code Extractor** extension through VSCode settings. Explore the available options to tailor the extension to your coding style and preferences.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Feedback and Support
 
-## Extension Settings
+We value your feedback! If you encounter any issues, have suggestions, or want to report a bug, please don't hesitate to [submit an issue](https://github.com/SaidTorres3/code-extractor-extension/issues) on my GitHub repository.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Acknowledgments
 
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- Special thanks to [OpenAI](https://chat.openai.com/) for making this extension.
+- Icons made by [DALL·E 3](https://openai.com/dall-e-3) from [OpenAI](https://www.openai.com/).
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**Code Extractor** is not affiliated with or endorsed by Visual Studio Code or Microsoft Corporation.
