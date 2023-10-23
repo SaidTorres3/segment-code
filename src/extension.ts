@@ -1,25 +1,33 @@
 import * as vscode from 'vscode';
+// Theree is editor and newEditor. Editor is the original editor, newEditor is the new editor that is opened.
 
 export function activate(context: vscode.ExtensionContext) {
 	let disposable = vscode.commands.registerCommand('extension.separate', () => {
 		const editor = vscode.window.activeTextEditor;
 
 		if (editor) {
+			const originalText = editor.document.getText();
 			const selection = editor.selection;
 			const selectedText = editor.document.getText(selection);
+			const range = new vscode.Range(selection.start, selection.end);
 
 			vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId })
 				.then(doc => {
 					vscode.window.showTextDocument(doc, { preview: false })
 						.then(newEditor => {
 							const originalUri = editor.document.uri;
-							const range = new vscode.Range(selection.start, selection.end);
 
 							const updateOriginalDocument = vscode.workspace.onDidChangeTextDocument(event => {
 								if (event.document === newEditor.document) {
-									const newText = event.document.getText();
 									const edit = new vscode.WorkspaceEdit();
-									edit.replace(originalUri, range, newText);
+									
+									const newText = event.document.getText();
+									const modifiedText = originalText.replace(selectedText, newText);
+
+									// replace all the original text with the modified text
+									const allTextRange = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(editor.document.lineCount + 1, 0))
+									edit.replace(originalUri, allTextRange, modifiedText);
+
 									vscode.workspace.applyEdit(edit);
 								}
 							});
