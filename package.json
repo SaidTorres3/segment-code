@@ -1,10 +1,15 @@
 {
-  "name": "segment-code",
-  "displayName": "segment-code",
-  "description": "It moves the selected part into a new window where you can edit it and it will update too in the original code realtime.",
+  "name": "separate-code",
+  "author": {
+    "name": "Said Torres",
+    "email": "sesaid17@hotmail.com",
+    "url": "https://github.com/SaidTorres3"
+  },
+  "displayName": "Separate Code",
+  "description": "VSCode extension that enables you to effortlessly extract portions of your code and edit them in a dedicated, synchronized tab. Experience real-time updates as your extracted code stays in sync with its original source, making code manipulation and refactoring a seamless and efficient process.",
   "icon": "icon.png",
   "repository": {
-    "url": "https://github.com/SaidTorres3/segment-code"
+    "url": "https://github.com/SaidTorres3/separate-code"
   },
   "version": "0.0.1",
   "engines": {
@@ -21,7 +26,7 @@
     "commands": [
       {
         "command": "extension.separate",
-        "title": "Separate"
+        "title": "Separate Code"
       }
     ],
     "menus": {
