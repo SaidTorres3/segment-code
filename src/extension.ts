@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-// Theree is editor and newEditor. Editor is the original editor, newEditor is the new editor that is opened.
 
 export function activate(context: vscode.ExtensionContext) {
 	let disposable = vscode.commands.registerCommand('extension.separate', () => {
+		// There are editor and newEditor. Editor is the original code where the code got extracted; newEditor is the new tab where is only the extracted code.
 		const editor = vscode.window.activeTextEditor;
 
 		if (editor) {
