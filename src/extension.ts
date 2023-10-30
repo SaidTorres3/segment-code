@@ -1,44 +1,45 @@
 import * as vscode from 'vscode';
 
-export function activate(context: vscode.ExtensionContext) {
-	let disposable = vscode.commands.registerCommand('extension.separate', () => {
-		// There are editor and newEditor. Editor is the original code where the code got extracted; newEditor is the new tab where is only the extracted code.
-		const editor = vscode.window.activeTextEditor;
+export async function activate(context: vscode.ExtensionContext) {
+	context.subscriptions.push(
+		vscode.commands.registerCommand('extension.separate', async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) { return; };
 
-		if (editor) {
 			const originalText = editor.document.getText();
-			const selection = editor.selection;
-			const selectedText = editor.document.getText(selection);
-			const range = new vscode.Range(selection.start, selection.end);
+			const selectedText = editor.document.getText(editor.selection);
+			const startLine = editor.document.lineAt(editor.selection.start.line);
 
-			vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId })
-				.then(doc => {
-					vscode.window.showTextDocument(doc, { preview: false })
-						.then(newEditor => {
-							const originalUri = editor.document.uri;
+			const matches = Array.from(originalText.matchAll(new RegExp(escapeRegExp(selectedText), 'g'))).map(match => editor.document.positionAt(match.index!).line);
 
-							const updateOriginalDocument = vscode.workspace.onDidChangeTextDocument(event => {
-								if (event.document === newEditor.document) {
-									const edit = new vscode.WorkspaceEdit();
+			try {
+				const doc = await vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId });
+				const newEditor = await vscode.window.showTextDocument(doc, { preview: false });
 
-									const newText = event.document.getText();
-									const modifiedText = originalText.replace(selectedText, newText);
+				context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => {
+					if (event.document === newEditor.document) {
+						const newText = event.document.getText();
+						const modifiedText = replaceNthOccurrence(originalText, escapeRegExp(selectedText), newText, matches.indexOf(startLine.lineNumber));
+						const allTextRange = new vscode.Range(0, 0, editor.document.lineCount + 1, 0);
+						const edit = new vscode.WorkspaceEdit();
+						edit.replace(editor.document.uri, allTextRange, modifiedText);
+						vscode.workspace.applyEdit(edit);
+					}
+				}));
+			} catch (error) {
+				console.error('Error occurred:', error);
+			}
+		})
+	);
+}
 
-									// replace all the original text with the modified text
-									const allTextRange = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(editor.document.lineCount + 1, 0));
-									edit.replace(originalUri, allTextRange, modifiedText);
+function escapeRegExp(string: string) {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-									vscode.workspace.applyEdit(edit);
-								}
-							});
-
-							context.subscriptions.push(updateOriginalDocument);
-						});
-				});
-		}
-	});
-
-	context.subscriptions.push(disposable);
+function replaceNthOccurrence(original: string, search: string, replacement: string, n: number) {
+	let i = 0;
+	return original.replace(new RegExp(search, 'g'), (match) => (i++ === n ? replacement : match));
 }
 
 export function deactivate() { }
