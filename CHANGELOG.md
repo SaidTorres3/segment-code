@@ -1,5 +1,10 @@
 # Change Log
 
+## [v1.2.0]
+
+- Added 111ms of debounce.
+- Fix text selection deletion when the new tab is closed
+
 ## [v1.1.0]
 
 - Rewrote code

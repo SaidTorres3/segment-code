@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as _ from 'lodash';
 
 export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
@@ -16,8 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				const doc = await vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId });
 				const newEditor = await vscode.window.showTextDocument(doc, { preview: false });
 
-				context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async event => {
-					await new Promise(resolve => setTimeout(resolve, 50));
+				const debouncedHandleTextChange = _.debounce(async (event: any) => {
 					if (event.document === newEditor.document && !event.document.isClosed) {
 						console.log(event.document.isClosed);
 						console.log(event);
@@ -28,10 +28,13 @@ export async function activate(context: vscode.ExtensionContext) {
 						edit.replace(editor.document.uri, allTextRange, modifiedText);
 						vscode.workspace.applyEdit(edit);
 					}
-				}));
+				}, 111);
+
+				context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(debouncedHandleTextChange));
 			} catch (error) {
 				console.error('Error occurred:', error);
 			}
+
 		})
 	);
 }
