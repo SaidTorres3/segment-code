@@ -6,8 +6,6 @@
 
 The **Separate Code** is a powerful Visual Studio Code extension designed to streamline your coding workflow by simplifying the process of extracting and editing code portions. It provides a dedicated, synchronized tab where you can effortlessly work on extracted code segments, all while maintaining real-time synchronization with their original sources. This extension is ideal for code manipulation, refactoring, and enhancing your overall coding efficiency.
 
-⚠️ DO NOT UPDATE THE SOURCE CODE WHILE YOU HAVE THE NEW TAB OPEN, AS IT WILL OVERWRITE THE SOURCE CODE ON EVERY CHANGE YOU DO IN THE NEW TAB. ⚠️
-
 ## Features
 
 - **Effortless Code Extraction**: Select and extract code sections from your source code effortlessly with a single click.
@@ -33,7 +31,7 @@ We value your feedback! If you encounter any issues, have suggestions, or want t
 
 ## Acknowledgments
 
-- Special thanks to [ChatGPT](https://chat.openai.com/) for making this extension.
+- Special thanks to [ChatGPT](https://chat.openai.com/) & [ClaudeAI](https://claude.ai/) for making this extension. :P
 - Icons made by [DALL·E 3](https://openai.com/dall-e-3) from [OpenAI](https://www.openai.com/).
 
 ---
