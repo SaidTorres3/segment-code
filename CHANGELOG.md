@@ -1,5 +1,8 @@
 # Change Log
 
+## [v1.3.1]
+- Fix common bug that causes text was not being updated on the source file.
+
 ## [v1.3.0]
 
 - You can edit the text in the original file while the code is separated without losing changes.

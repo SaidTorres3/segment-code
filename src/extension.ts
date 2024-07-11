@@ -1,108 +1,67 @@
 import * as vscode from 'vscode';
-import * as _ from 'lodash';
 
-export async function activate(context: vscode.ExtensionContext) {
-	context.subscriptions.push(
-		vscode.commands.registerCommand('extension.separate', async () => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) { return; }
+export function activate(context: vscode.ExtensionContext) {
 
-			const originalText = editor.document.getText();
-			const selectedText = editor.document.getText(editor.selection);
-			const startLine = editor.document.lineAt(editor.selection.start.line);
-			const matches = Array.from(originalText.matchAll(new RegExp(escapeRegExp(selectedText), 'g')))
-				.map(match => editor.document.positionAt(match.index!).line);
-
-			try {
-				const doc = await vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId });
-				const newEditor = await vscode.window.showTextDocument(doc, { preview: false });
-
-				let lastOriginalText = originalText;
-				let lastSelectedText = selectedText;
-
-				const debouncedHandleTextChange = _.debounce(async (event: vscode.TextDocumentChangeEvent) => {
-					if (event.document === newEditor.document && !event.document.isClosed) {
-						const currentOriginalText = editor.document.getText();
-						const newText = event.document.getText();
-
-						// Check if the original document has changed
-						if (currentOriginalText !== lastOriginalText) {
-							// Merge changes from both documents
-							const mergedText = mergeChanges(lastOriginalText, currentOriginalText, lastSelectedText, newText);
-
-							const allTextRange = new vscode.Range(0, 0, editor.document.lineCount + 1, 0);
-							const edit = new vscode.WorkspaceEdit();
-							edit.replace(editor.document.uri, allTextRange, mergedText);
-							await vscode.workspace.applyEdit(edit);
-
-							// Update the content in the new tab
-							const newTabEdit = new vscode.WorkspaceEdit();
-							const newTabAllTextRange = new vscode.Range(0, 0, newEditor.document.lineCount + 1, 0);
-							newTabEdit.replace(newEditor.document.uri, newTabAllTextRange, newText);
-							await vscode.workspace.applyEdit(newTabEdit);
-						} else {
-							// If only the new tab has changed, update the original document
-							const modifiedText = replaceNthOccurrence(currentOriginalText, escapeRegExp(lastSelectedText), newText, matches.indexOf(startLine.lineNumber));
-
-							const allTextRange = new vscode.Range(0, 0, editor.document.lineCount + 1, 0);
-							const edit = new vscode.WorkspaceEdit();
-							edit.replace(editor.document.uri, allTextRange, modifiedText);
-							await vscode.workspace.applyEdit(edit);
-						}
-
-						// Update the last known states
-						lastOriginalText = editor.document.getText();
-						lastSelectedText = newText;
-					}
-				}, 300);
-
-				context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(debouncedHandleTextChange));
-			} catch (error) {
-				console.error('Error occurred:', error);
-			}
-		})
-	);
-}
-
-function escapeRegExp(string: string) {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function replaceNthOccurrence(original: string, search: string, replacement: string, n: number) {
-	let i = 0;
-	return original.replace(new RegExp(search, 'g'), (match) => (i++ === n ? replacement : match));
-}
-
-function mergeChanges(originalOld: string, originalNew: string, selectedOld: string, selectedNew: string): string {
-	// Find the differences between the old and new original texts
-	const originalDiff = findDifference(originalOld, originalNew);
-
-	// Apply these differences to the new selected text
-	let mergedText = originalNew;
-	const searchRegex = new RegExp(escapeRegExp(selectedOld), 'g');
-	let match;
-	let lastIndex = 0;
-	let occurrenceIndex = 0;
-
-	while ((match = searchRegex.exec(mergedText)) !== null) {
-		if (occurrenceIndex === 0) {
-			// Replace the first occurrence with the new selected text
-			mergedText = mergedText.substring(0, match.index) + selectedNew + mergedText.substring(match.index + selectedOld.length);
-			lastIndex = match.index + selectedNew.length;
-			searchRegex.lastIndex = lastIndex;
+	const disposable = vscode.commands.registerCommand('extension.separate', async () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
 		}
-		occurrenceIndex++;
-	}
 
-	return mergedText;
-}
+		const selection = editor.selection;
+		const selectedText = editor.document.getText(selection);
 
-function findDifference(oldText: string, newText: string): string {
-	let i = 0;
-	while (i < oldText.length && i < newText.length && oldText[i] === newText[i]) {
-		i++;
-	}
-	return newText.slice(i);
+		// Open a new tab with the selected text
+		const newDoc = await vscode.workspace.openTextDocument({
+			content: selectedText,
+			language: editor.document.languageId
+		});
+		const newEditor = await vscode.window.showTextDocument(newDoc);
+
+		// Sync changes between original and extracted documents
+		const syncDocuments = (original: vscode.TextEditor, extracted: vscode.TextEditor) => {
+			const originalUri = original.document.uri;
+			const extractedUri = extracted.document.uri;
+
+			// Track changes in original and sync to extracted
+			const originalToExtracted = vscode.workspace.onDidChangeTextDocument(event => {
+				if (event.document.uri.toString() === originalUri.toString()) {
+					const newText = original.document.getText(selection);
+					const edit = new vscode.WorkspaceEdit();
+					edit.replace(extractedUri, new vscode.Range(new vscode.Position(0, 0), extracted.document.lineAt(extracted.document.lineCount - 1).range.end), newText);
+					vscode.workspace.applyEdit(edit);
+				}
+			});
+
+			// Track changes in extracted and sync to original
+			const extractedToOriginal = vscode.workspace.onDidChangeTextDocument(event => {
+				if (event.document.uri.toString() === extractedUri.toString()) {
+					const newText = extracted.document.getText();
+					const edit = new vscode.WorkspaceEdit();
+					edit.replace(originalUri, selection, newText);
+					vscode.workspace.applyEdit(edit);
+
+					// Adjust the selection to account for changes in length
+					const newLines = newText.split('\n').length;
+					const oldLines = selectedText.split('\n').length;
+					const lineDelta = newLines - oldLines;
+					const newSelection = new vscode.Selection(
+						selection.start.line,
+						selection.start.character,
+						selection.end.line + lineDelta,
+						selection.end.character
+					);
+					editor.selection = newSelection;
+				}
+			});
+
+			context.subscriptions.push(originalToExtracted, extractedToOriginal);
+		};
+
+		syncDocuments(editor, newEditor);
+	});
+
+	context.subscriptions.push(disposable);
 }
 
 export function deactivate() { }
