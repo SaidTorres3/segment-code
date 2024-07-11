@@ -1,5 +1,8 @@
 # Change Log
 
+## [v1.3.2]
+- REVERTED CHANGES TO 1.2.0 DUE TO CRITICAL ISSUES. STAY TUNED FOR A NEW UPDATE.
+
 ## [v1.3.1]
 - Fix common bug that causes text was not being updated on the source file.
 

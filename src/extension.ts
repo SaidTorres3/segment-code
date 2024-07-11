@@ -1,67 +1,51 @@
 import * as vscode from 'vscode';
+import * as _ from 'lodash';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+	context.subscriptions.push(
+		vscode.commands.registerCommand('extension.separate', async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) { return; };
 
-	const disposable = vscode.commands.registerCommand('extension.separate', async () => {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			return;
-		}
+			const originalText = editor.document.getText();
+			const selectedText = editor.document.getText(editor.selection);
+			const startLine = editor.document.lineAt(editor.selection.start.line);
 
-		const selection = editor.selection;
-		const selectedText = editor.document.getText(selection);
+			const matches = Array.from(originalText.matchAll(new RegExp(escapeRegExp(selectedText), 'g'))).map(match => editor.document.positionAt(match.index!).line);
 
-		// Open a new tab with the selected text
-		const newDoc = await vscode.workspace.openTextDocument({
-			content: selectedText,
-			language: editor.document.languageId
-		});
-		const newEditor = await vscode.window.showTextDocument(newDoc);
+			try {
+				const doc = await vscode.workspace.openTextDocument({ content: selectedText, language: editor.document.languageId });
+				const newEditor = await vscode.window.showTextDocument(doc, { preview: false });
 
-		// Sync changes between original and extracted documents
-		const syncDocuments = (original: vscode.TextEditor, extracted: vscode.TextEditor) => {
-			const originalUri = original.document.uri;
-			const extractedUri = extracted.document.uri;
+				const debouncedHandleTextChange = _.debounce(async (event: any) => {
+					if (event.document === newEditor.document && !event.document.isClosed) {
+						console.log(event.document.isClosed);
+						console.log(event);
+						const newText = event.document.getText();
+						const modifiedText = replaceNthOccurrence(originalText, escapeRegExp(selectedText), newText, matches.indexOf(startLine.lineNumber));
+						const allTextRange = new vscode.Range(0, 0, editor.document.lineCount + 1, 0);
+						const edit = new vscode.WorkspaceEdit();
+						edit.replace(editor.document.uri, allTextRange, modifiedText);
+						vscode.workspace.applyEdit(edit);
+					}
+				}, 111);
 
-			// Track changes in original and sync to extracted
-			const originalToExtracted = vscode.workspace.onDidChangeTextDocument(event => {
-				if (event.document.uri.toString() === originalUri.toString()) {
-					const newText = original.document.getText(selection);
-					const edit = new vscode.WorkspaceEdit();
-					edit.replace(extractedUri, new vscode.Range(new vscode.Position(0, 0), extracted.document.lineAt(extracted.document.lineCount - 1).range.end), newText);
-					vscode.workspace.applyEdit(edit);
-				}
-			});
+				context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(debouncedHandleTextChange));
+			} catch (error) {
+				console.error('Error occurred:', error);
+			}
 
-			// Track changes in extracted and sync to original
-			const extractedToOriginal = vscode.workspace.onDidChangeTextDocument(event => {
-				if (event.document.uri.toString() === extractedUri.toString()) {
-					const newText = extracted.document.getText();
-					const edit = new vscode.WorkspaceEdit();
-					edit.replace(originalUri, selection, newText);
-					vscode.workspace.applyEdit(edit);
+		})
+	);
+}
 
-					// Adjust the selection to account for changes in length
-					const newLines = newText.split('\n').length;
-					const oldLines = selectedText.split('\n').length;
-					const lineDelta = newLines - oldLines;
-					const newSelection = new vscode.Selection(
-						selection.start.line,
-						selection.start.character,
-						selection.end.line + lineDelta,
-						selection.end.character
-					);
-					editor.selection = newSelection;
-				}
-			});
+function escapeRegExp(string: string) {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-			context.subscriptions.push(originalToExtracted, extractedToOriginal);
-		};
-
-		syncDocuments(editor, newEditor);
-	});
-
-	context.subscriptions.push(disposable);
+function replaceNthOccurrence(original: string, search: string, replacement: string, n: number) {
+	let i = 0;
+	return original.replace(new RegExp(search, 'g'), (match) => (i++ === n ? replacement : match));
 }
 
 export function deactivate() { }
