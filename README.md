@@ -21,9 +21,10 @@ The **Separate Code** is a powerful Visual Studio Code extension designed to str
 4. Right-click and choose "Separate Code" from the context menu, or use the predefined keyboard shortcut.
 5. A synchronized tab will open with the extracted code. Make your edits, and they will instantly reflect in the source file.
 
-## Showcase
+## Showcase & examples
 
-![Separate Code Tutorial Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/tutorial-showcase.gif)
+![Separate Code Tutorial Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/showcase.gif)
+![Separate Code Tutorial Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-identation.gif)
 
 ## Feedback and Support
 
