@@ -1,40 +1,69 @@
 # Separate Code
 
-![Separate Code Logo](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/icon.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SaidTorres3/separate-code/main/icon.png" alt="Separate Code Logo" width="200">
+</p>
 
-## Overview
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=SaidTorres3.separate-code">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/SaidTorres3.separate-code.svg?style=flat-square&label=VS%20Marketplace&logo=visual-studio-code" alt="VS Marketplace Version">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=SaidTorres3.separate-code">
+    <img src="https://img.shields.io/visual-studio-marketplace/d/SaidTorres3.separate-code.svg?style=flat-square&label=Downloads&logo=visual-studio-code" alt="VS Marketplace Downloads">
+  </a>
+  <a href="https://github.com/SaidTorres3/separate-code/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/SaidTorres3/separate-code.svg?style=flat-square&label=License&logo=github" alt="License">
+  </a>
+</p>
 
-The **Separate Code** is a powerful Visual Studio Code extension designed to streamline your coding workflow by simplifying the process of extracting and editing code portions. It provides a dedicated, synchronized tab where you can effortlessly work on extracted code segments, all while maintaining real-time synchronization with their original sources. This extension is ideal for code manipulation, refactoring, and enhancing your overall coding efficiency.
+## 🚀 Overview
 
-## Features
+**Separate Code** is a powerful Visual Studio Code extension designed to revolutionize your coding workflow. It simplifies the process of extracting and editing code portions by providing a dedicated, synchronized tab for seamless code manipulation. Perfect for refactoring, focused editing, and boosting overall coding efficiency.
 
-- **Effortless Code Extraction**: Select and extract code sections from your source code effortlessly with a single click.
-- **Synchronized Editing**: Experience real-time synchronization between the extracted code and its original source. Any changes made in the extracted code tab are immediately reflected in the source file.
-- **Enhanced Refactoring**: Easily refactor your code by extracting methods, functions, or classes into separate tabs for focused editing.
-- **Improved Code Management**: Keep your code organized by isolating and working on specific code segments.
+## ✨ Features
 
-## Getting Started
+- **✂️ Effortless Code Extraction**: Extract code sections with a single click.
+- **🔄 Real-time Synchronization**: Changes in extracted code instantly reflect in the source file and vice versa.
+- **🛠️ Enhanced Refactoring**: Easily refactor methods, functions, or classes in isolated tabs.
+- **📊 Improved Code Management**: Organize and focus on specific code segments.
 
-1. Install the **Separate Code** extension from the Visual Studio Code Marketplace.
-2. Open your desired project in Visual Studio Code.
-3. Select the code portion you want to extract.
-4. Right-click and choose "Separate Code" from the context menu, or use the predefined keyboard shortcut.
-5. A synchronized tab will open with the extracted code. Make your edits, and they will instantly reflect in the source file.
+## 🚀 Getting Started
 
-## Showcase & examples
+1. Install **Separate Code** from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=SaidTorres3.separate-code).
+2. Open your project in VS Code.
+3. Select the code you want to extract.
+4. Right-click and choose "✂️ Separate Code".
+5. Edit the extracted code in the new synchronized tab.
 
-![Separate Code Tutorial Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/showcase.gif)
-![Separate Code Tutorial Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-identation.gif)
+## 🎥 Showcase & Examples
 
-## Feedback and Support
+### Basic Showcase Usage
 
-We value your feedback! If you encounter any issues, have suggestions, or want to report a bug, please don't hesitate to [submit an issue](https://github.com/SaidTorres3/separate-code/issues) on my GitHub repository.
+![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/showcase.gif)
 
-## Acknowledgments
+### Easy Code Indentation
 
-- Special thanks to [ChatGPT](https://chat.openai.com/) & [ClaudeAI](https://claude.ai/) for making this extension. :P
-- Icons made by [DALL·E 3](https://openai.com/dall-e-3) from [OpenAI](https://www.openai.com/).
+![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-identation.gif)
 
----
+### Code Refactoring
 
-**Separate Code** is not affiliated with or endorsed by Visual Studio Code or Microsoft Corporation.
+![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-refactor.gif)
+
+## 🤝 Contributing
+
+We welcome contributions!
+
+## 📣 Feedback and Support
+
+Your feedback is invaluable! If you encounter issues, have suggestions, or want to report a bug:
+
+- [Submit an issue](https://github.com/SaidTorres3/separate-code/issues)
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Special thanks to [ChatGPT](https://chat.openai.com/) & [ClaudeAI](https://claude.ai/) for their assistance in development.
+- Icons created by [DALL·E 3](https://openai.com/dall-e-3) from [OpenAI](https://www.openai.com/).

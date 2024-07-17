@@ -1,12 +1,17 @@
 # Change Log
 
+## [v2.0.1]
+
+- Updated README.md.
+- Added refactoring showcase gif screenshot.
+
 ## [v2.0.0]
 
 - Updated the whole code.
-- Added ✂️ emoji to the Separete Code action.
-- New tab is now open besides the original file.
+- Added ✂️ emoji to the Separate Code action.
+- The new tab is now open beside the original file.
 - Bi-directional update.
-- Dinamic increase/decrease of initial selection range.
+- Dynamic increase/decrease of the initial selection range.
 - Updated README.md.
 - No changes are lost when updating code in the original file.
 - Added new gif screenshots.
