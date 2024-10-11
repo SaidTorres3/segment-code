@@ -1,5 +1,5 @@
 {
-  "version": "2.0.1",
+  "version": "3.0.0",
   "name": "separate-code",
   "displayName": "Separate Code",
   "publisher": "SaidTorres3",
@@ -27,7 +27,8 @@
     "commands": [
       {
         "command": "extension.separate",
-        "title": "✂️ Separate Code"
+        "title": "✂️ Separate Code",
+        "category": "Editor"
       }
     ],
     "menus": {
@@ -38,6 +39,24 @@
           "group": "navigation"
         }
       ]
+    },
+    "keybindings": [
+      {
+        "command": "extension.separate",
+        "key": "ctrl+alt+shift+s",
+        "when": "editorTextFocus && editorHasSelection",
+        "mac": "cmd+alt+shift+s"
+      }
+    ],
+    "configuration": {
+      "title": "Separate Code Settings",
+      "properties": {
+        "separateCode.shortcut": {
+          "type": "string",
+          "default": "ctrl+alt+shift+s",
+          "description": "Shortcut keybinding to trigger code separation."
+        }
+      }
     }
   },
   "scripts": {
@@ -55,6 +74,7 @@
     "@types/lodash": "^4.14.202",
     "@types/mocha": "^10.0.2",
     "@types/node": "18.x",
+    "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.83.0",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@typescript-eslint/parser": "^6.7.3",
@@ -64,10 +84,12 @@
     "mocha": "^10.2.0",
     "ts-loader": "^9.4.4",
     "typescript": "^5.2.2",
+    "uuid": "^9.0.0",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.0"
   }
 }
