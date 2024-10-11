@@ -190,12 +190,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 	let isUpdating = false;
 	let originalSelection = tempTab.originalSelection;
 
-	// Flag to indicate if the change is programmatic to prevent unwanted sync
-	let isProgrammaticUpdate = false;
-
 	// Debounce the autosave function with a delay of 300ms (adjust as needed)
 	const debouncedAutosave = debounce(async () => {
-		isProgrammaticUpdate = true;
+		// Only proceed with autosaving if the tab isn't closed
+		if (tempTab.isClosed) return; // Skip saving if the temp tab is closed
+
 		tempTab.isProgrammaticSave = true;
 		try {
 			await extractedDoc.save();
@@ -203,16 +202,13 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			vscode.window.showErrorMessage(`Failed to save temporary file: ${error}`);
 		} finally {
 			tempTab.isProgrammaticSave = false;
-			isProgrammaticUpdate = false;
 		}
 	}, 300);
 
 	// Track changes in the original document and sync to the extracted document
 	const originalToExtracted = vscode.workspace.onDidChangeTextDocument(async originalEvent => {
-		if (isProgrammaticUpdate) {
-			// Skip processing if the change is programmatic
-			return;
-		}
+		// Do not sync if the temp tab is closed
+		if (tempTab.isClosed) return;
 
 		if (!isUpdating && originalEvent.document.uri.toString() === originalDoc.uri.toString()) {
 			isUpdating = true;
@@ -282,10 +278,8 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 	// Track changes in the extracted document and sync to the original document
 	const extractedToOriginal = vscode.workspace.onDidChangeTextDocument(async extractedEvent => {
-		if (isProgrammaticUpdate) {
-			// Skip processing if the change is programmatic
-			return;
-		}
+		// Do not sync if the temp tab is closed
+		if (tempTab.isClosed) return;
 
 		if (!isUpdating && extractedEvent.document.uri.toString() === extractedDoc.uri.toString()) {
 			isUpdating = true;
