@@ -290,7 +290,6 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			}
 
 			// Update the original document with the changes from the extracted document
-			// Create a workspace edit to update the original document
 			const edit = new vscode.WorkspaceEdit();
 			edit.replace(originalDoc.uri, originalSelection, newText);
 			await vscode.workspace.applyEdit(edit);
@@ -323,16 +322,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	});
 
-	// Handle closing of the extracted document
-	const closeHandler = vscode.workspace.onDidCloseTextDocument(async (doc) => {
-		if (doc.uri.toString() === extractedDoc.uri.toString()) {
-			// Check if the document is still open (e.g., reopened due to language change)
-			const isStillOpen = vscode.workspace.textDocuments.some(d => d.uri.toString() === doc.uri.toString());
-			if (isStillOpen) {
-				// The document is still open, do not clean up
-				return;
-			}
+	// Handle closing of the extracted document by tracking visible editors
+	const closeHandler = vscode.window.onDidChangeVisibleTextEditors(async (editors) => {
+		const isExtractedDocVisible = editors.some(editor => editor.document.uri.toString() === extractedDoc.uri.toString());
 
+		if (!isExtractedDocVisible) {
 			// Mark the temp tab as closed
 			tempTab.isClosed = true;
 
@@ -341,6 +335,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 			// Clean up temporary files if any
 			try {
+				console.log("Everything got DELETED D:");
 				await unlinkAsync(tempTab.tempFileName);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to delete temporary file: ${error}`);
