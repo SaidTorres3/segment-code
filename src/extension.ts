@@ -189,11 +189,12 @@ function debounce(func: (...args: any[]) => void, delay: number) {
 function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.TextDocument, tempTab: TempTab) {
 	let isUpdating = false;
 	let originalSelection = tempTab.originalSelection;
+	let pendingChanges: vscode.TextDocumentContentChangeEvent[] = [];
+	let processingTimeout: NodeJS.Timeout | null = null;
 
-	// Debounce the autosave function with a delay of 300ms (adjust as needed)
+	// Debounce the autosave function with a delay of 300ms
 	const debouncedAutosave = debounce(async () => {
-		// Only proceed with autosaving if the tab isn't closed
-		if (tempTab.isClosed) return; // Skip saving if the temp tab is closed
+		if (tempTab.isClosed) { return; }
 
 		tempTab.isProgrammaticSave = true;
 		try {
@@ -205,143 +206,200 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	}, 300);
 
-	// Track changes in the original document and sync to the extracted document
-	const originalToExtracted = vscode.workspace.onDidChangeTextDocument(async originalEvent => {
-		// Do not sync if the temp tab is closed
-		if (tempTab.isClosed) return;
+	// Calculate position adjustment based on line deletion
+	const calculatePositionAdjustment = (
+		position: vscode.Position,
+		changeStart: vscode.Position,
+		changeEnd: vscode.Position,
+		changeText: string
+	): vscode.Position => {
+		// If change is before the position's line, adjust the line number
+		if (changeEnd.line < position.line) {
+			const deletedLines = changeEnd.line - changeStart.line;
+			const addedLines = changeText.split('\n').length - 1;
+			const lineDelta = addedLines - deletedLines;
+			return position.translate(lineDelta, 0);
+		}
 
-		if (!isUpdating && originalEvent.document.uri.toString() === originalDoc.uri.toString()) {
-			isUpdating = true;
+		// If change is on the same line as position
+		if (changeStart.line === position.line) {
+			const deletedText = originalDoc.getText(new vscode.Range(changeStart, changeEnd));
+			const characterDelta = changeText.length - deletedText.length;
+			if (changeStart.character < position.character) {
+				return position.translate(0, characterDelta);
+			}
+		}
 
-			// Initialize cumulative line delta
-			let cumulativeLineDelta = 0;
+		return position;
+	};
 
-			// Recalculate selection range based on all changes
-			originalEvent.contentChanges.forEach(change => {
-				const changeStartLine = change.range.start.line;
-				const changeEndLine = change.range.end.line;
-				const changeLineDelta = change.text.split('\n').length - (changeEndLine - changeStartLine + 1);
+	// Check if a position is within a range
+	const isPositionWithinRange = (position: vscode.Position, start: vscode.Position, end: vscode.Position): boolean => {
+		return (position.line > start.line || (position.line === start.line && position.character >= start.character)) &&
+			(position.line < end.line || (position.line === end.line && position.character <= end.character));
+	};
 
-				if (changeEndLine < originalSelection.start.line) {
-					// Change is entirely before the selection
-					cumulativeLineDelta += changeLineDelta;
+	// Process pending changes in a batch
+	const processPendingChanges = async () => {
+		if (pendingChanges.length === 0) return;
 
-					originalSelection = new vscode.Selection(
-						new vscode.Position(
-							originalSelection.start.line + changeLineDelta,
-							originalSelection.start.character
-						),
-						new vscode.Position(
-							originalSelection.end.line + changeLineDelta,
-							originalSelection.end.character
-						)
-					);
-				} else if (changeStartLine <= originalSelection.end.line) {
-					// Change affects the selection
-					cumulativeLineDelta += changeLineDelta;
+		const changes = [...pendingChanges];
+		pendingChanges = [];
 
-					let newEndLine = originalSelection.end.line + changeLineDelta;
-					let newEndChar = originalSelection.end.character;
+		let newStart = originalSelection.start;
+		let newEnd = originalSelection.end;
 
-					// Adjust end character if the change is on the last line of the selection
-					if (changeStartLine === originalSelection.end.line) {
-						newEndChar += (change.text.length - change.rangeLength);
-						if (newEndChar < 0) newEndChar = 0; // Prevent negative character positions
-					}
+		for (const change of changes) {
+			const changeStart = change.range.start;
+			const changeEnd = change.range.end;
+			const changeLines = change.text.split('\n');
+			const changeLineCount = changeLines.length - 1;
+			const lastLineLength = changeLines[changeLines.length - 1].length;
 
-					originalSelection = new vscode.Selection(
-						originalSelection.start,
-						new vscode.Position(newEndLine, newEndChar)
+			// Check if change is within selection
+			const isWithinSelection = isPositionWithinRange(changeStart, originalSelection.start, originalSelection.end);
+			const isAtSelectionEnd = changeStart.line === originalSelection.end.line &&
+				Math.abs(changeStart.character - originalSelection.end.character) <= 1;
+
+			if (isWithinSelection || isAtSelectionEnd) {
+				// Calculate the change in text length
+				const oldTextLength = changeEnd.character - changeStart.character;
+				const newTextLength = change.text.length;
+				const lineDelta = changeLines.length - 1;
+
+				// If it's a new line insertion within selection
+				if (lineDelta > 0 && isWithinSelection) {
+					// Adjust the end position based on new lines added
+					newEnd = newEnd.translate(lineDelta, lastLineLength);
+				} else if (isAtSelectionEnd) {
+					// For changes at selection end
+					newEnd = newEnd.translate(
+						changeLineCount,
+						changeLineCount === 0 ?
+							newEnd.character + newTextLength - oldTextLength :
+							lastLineLength
 					);
 				}
-				// Changes after the selection do not affect the current selection
-			});
+			} else {
+				// Handle changes outside selection
+				newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
+				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
 
-			// Get the new text from the original and update the extracted document
-			const newText = originalDoc.getText(originalSelection);
+				// Additional check for changes that affect the selection content
+				if (changeStart.isBeforeOrEqual(newEnd) && changeEnd.isAfterOrEqual(newStart)) {
+					if (changeStart.isBefore(newStart)) {
+						newStart = changeStart;
+					}
 
-			// Create a workspace edit to update the extracted document
-			const edit = new vscode.WorkspaceEdit();
-			const fullRange = new vscode.Range(
-				extractedDoc.positionAt(0),
-				extractedDoc.positionAt(extractedDoc.getText().length)
-			);
-			edit.replace(extractedDoc.uri, fullRange, newText);
-			await vscode.workspace.applyEdit(edit);
+					const endLineDelta = changeLineCount;
+					const endCharDelta = changeLineCount === 0 ?
+						change.text.length - (changeEnd.character - changeStart.character) :
+						lastLineLength;
 
-			// Trigger debounced autosave
-			debouncedAutosave();
-
-			isUpdating = false;
+					if (changeEnd.translate(0, endCharDelta).isAfter(newEnd)) {
+						newEnd = changeEnd.translate(0, endCharDelta);
+					}
+				}
+			}
 		}
+
+		// Update selection with new positions
+		originalSelection = new vscode.Selection(newStart, newEnd);
+
+		// Get the new text from the original and update the extracted document
+		const newText = originalDoc.getText(originalSelection);
+
+		// Create a workspace edit to update the extracted document
+		const edit = new vscode.WorkspaceEdit();
+		const fullRange = new vscode.Range(
+			extractedDoc.positionAt(0),
+			extractedDoc.positionAt(extractedDoc.getText().length)
+		);
+		edit.replace(extractedDoc.uri, fullRange, newText);
+		await vscode.workspace.applyEdit(edit);
+
+		// Update tempTab's originalSelection
+		tempTab.originalSelection = originalSelection;
+
+		// Trigger debounced autosave
+		debouncedAutosave();
+	};
+
+	// Track changes in the original document and sync to the extracted document
+	const originalToExtracted = vscode.workspace.onDidChangeTextDocument(async originalEvent => {
+		if (tempTab.isClosed || isUpdating ||
+			originalEvent.document.uri.toString() !== originalDoc.uri.toString()) {
+			return;
+		}
+
+		isUpdating = true;
+
+		// Add new changes to pending changes
+		pendingChanges.push(...originalEvent.contentChanges);
+
+		// Clear existing timeout if any
+		if (processingTimeout) {
+			clearTimeout(processingTimeout);
+		}
+
+		// Process changes after a short delay to batch multiple rapid changes
+		processingTimeout = setTimeout(async () => {
+			await processPendingChanges();
+			processingTimeout = null;
+			isUpdating = false;
+		}, 10);
 	});
 
 	// Track changes in the extracted document and sync to the original document
 	const extractedToOriginal = vscode.workspace.onDidChangeTextDocument(async extractedEvent => {
-		// Do not sync if the temp tab is closed
-		if (tempTab.isClosed) return;
-
-		if (!isUpdating && extractedEvent.document.uri.toString() === extractedDoc.uri.toString()) {
-			isUpdating = true;
-			const newText = extractedDoc.getText();
-			if (newText.length === 0) {
-				isUpdating = false;
-				return;
-			}
-
-			// Update the original document with the changes from the extracted document
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(originalDoc.uri, originalSelection, newText);
-			await vscode.workspace.applyEdit(edit);
-
-			// Adjust the selection to account for changes in length
-			const newLines = newText.split('\n');
-			const oldLines = originalDoc.getText(originalSelection).split('\n');
-			const lineDelta = newLines.length - oldLines.length;
-
-			let endLine = originalSelection.end.line + lineDelta;
-			let endCharacter = newLines[newLines.length - 1].length;
-
-			if (lineDelta === 0) {
-				endCharacter = originalSelection.end.character + (newText.length - originalDoc.getText(originalSelection).length);
-				if (endCharacter < 0) endCharacter = 0; // Prevent negative character positions
-			}
-
-			originalSelection = new vscode.Selection(
-				originalSelection.start,
-				new vscode.Position(endLine, endCharacter)
-			);
-
-			// Update the original selection in tempTab
-			tempTab.originalSelection = originalSelection;
-
-			// Trigger debounced autosave
-			debouncedAutosave();
-
-			isUpdating = false;
+		if (tempTab.isClosed || isUpdating ||
+			extractedEvent.document.uri.toString() !== extractedDoc.uri.toString()) {
+			return;
 		}
+
+		isUpdating = true;
+
+		const newText = extractedDoc.getText();
+		const newLines = newText.split('\n');
+
+		// Replace the selection in the original document with the new text
+		const edit = new vscode.WorkspaceEdit();
+		edit.replace(originalDoc.uri, originalSelection, newText);
+		await vscode.workspace.applyEdit(edit);
+
+		// Calculate the new end position considering line breaks
+		const lineCount = newLines.length - 1;
+		const lastLineLength = newLines[newLines.length - 1].length;
+		const newEndPosition = originalSelection.start.translate(
+			lineCount,
+			lineCount === 0 ? newText.length : lastLineLength
+		);
+		originalSelection = new vscode.Selection(originalSelection.start, newEndPosition);
+
+		// Update tempTab's originalSelection
+		tempTab.originalSelection = originalSelection;
+
+		// Trigger debounced autosave
+		debouncedAutosave();
+
+		isUpdating = false;
 	});
 
-	// Handle closing of the extracted document by tracking visible editors
+	// Handle closing of the extracted document
 	const closeHandler = vscode.window.onDidChangeVisibleTextEditors(async (editors) => {
-		const isExtractedDocVisible = editors.some(editor => editor.document.uri.toString() === extractedDoc.uri.toString());
+		const isExtractedDocVisible = editors.some(editor =>
+			editor.document.uri.toString() === extractedDoc.uri.toString());
 
 		if (!isExtractedDocVisible) {
-			// Mark the temp tab as closed
 			tempTab.isClosed = true;
-
-			// Dispose of all disposables for this tempTab
 			tempTab.disposables.forEach(disposable => disposable.dispose());
 
-			// Clean up temporary files if any
 			try {
-				console.log("Everything got DELETED D:");
 				await unlinkAsync(tempTab.tempFileName);
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to delete temporary file: ${error}`);
 			}
 
-			// Remove the temp tab from the active list
 			activeTempTabs.delete(tempTab.originalUri);
 		}
 	});
