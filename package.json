@@ -51,10 +51,15 @@
     "configuration": {
       "title": "Separate Code Settings",
       "properties": {
-        "separateCode.shortcut": {
-          "type": "string",
-          "default": "ctrl+alt+shift+s",
-          "description": "Shortcut keybinding to trigger code separation."
+        "separateCode.showSelectionWhileTyping": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show synchronized selection in the unused tab while typing with a selection."
+        },
+        "separateCode.selectionTimeout": {
+          "type": "number",
+          "default": 1000,
+          "description": "How long (in milliseconds) to show the selection after typing (when showSelectionWhileTyping is enabled)."
         }
       }
     }

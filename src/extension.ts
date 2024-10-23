@@ -23,7 +23,7 @@ interface TempTab {
 	originalUri: string;
 	disposables: vscode.Disposable[];
 	isProgrammaticSave: boolean;
-	isClosed: boolean; // Added to track if the tab was manually closed
+	isClosed: boolean;
 	originalSelection: vscode.Selection;
 }
 
@@ -117,7 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
 				originalUri,
 				disposables: [],
 				isProgrammaticSave: false,
-				isClosed: false, // Initialize isClosed to false
+				isClosed: false,
 				originalSelection: selection, // Store the original selection
 			};
 
@@ -191,6 +191,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 	let originalSelection = tempTab.originalSelection;
 	let pendingChanges: vscode.TextDocumentContentChangeEvent[] = [];
 	let processingTimeout: NodeJS.Timeout | null = null;
+	let selectionTimeout: NodeJS.Timeout | null = null;
 
 	// Debounce the autosave function with a delay of 300ms
 	const debouncedAutosave = debounce(async () => {
@@ -205,6 +206,74 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			tempTab.isProgrammaticSave = false;
 		}
 	}, 300);
+
+	// Helper function to clear selections in both editors
+	const clearSelections = () => {
+		const originalEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.uri.toString() === originalDoc.uri.toString()
+		);
+		const extractedEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.uri.toString() === extractedDoc.uri.toString()
+		);
+
+		if (originalEditor && !originalEditor.selection.isEmpty) {
+			const activePosition = originalEditor.selection.active;
+			originalEditor.selection = new vscode.Selection(activePosition, activePosition);
+		}
+
+		if (extractedEditor && !extractedEditor.selection.isEmpty) {
+			const activePosition = extractedEditor.selection.active;
+			extractedEditor.selection = new vscode.Selection(activePosition, activePosition);
+		}
+	};
+
+	// Helper function to update selections in both editors
+	const updateEditorSelections = () => {
+		// Check if the feature is enabled in settings
+		const config = vscode.workspace.getConfiguration('separate');
+		if (!config.get('showSelectionWhileTyping', true)) {
+			return;
+		}
+
+		const originalEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.uri.toString() === originalDoc.uri.toString()
+		);
+		const extractedEditor = vscode.window.visibleTextEditors.find(
+			editor => editor.document.uri.toString() === extractedDoc.uri.toString()
+		);
+
+		if (originalEditor && extractedEditor) {
+			// Get the active editor
+			const activeEditor = vscode.window.activeTextEditor;
+			if (!activeEditor) return;
+
+			const isOriginalActive = activeEditor.document.uri.toString() === originalDoc.uri.toString();
+			const isExtractedActive = activeEditor.document.uri.toString() === extractedDoc.uri.toString();
+
+			if (isOriginalActive) {
+				// When editing original, highlight the corresponding text in extracted
+				const fullRange = new vscode.Range(
+					extractedDoc.positionAt(0),
+					extractedDoc.positionAt(extractedDoc.getText().length)
+				);
+				extractedEditor.selection = new vscode.Selection(fullRange.start, fullRange.end);
+			} else if (isExtractedActive) {
+				// When editing extracted, highlight the corresponding text in original
+				originalEditor.selection = originalSelection;
+			}
+
+			// Clear the previous timeout if it exists
+			if (selectionTimeout) {
+				clearTimeout(selectionTimeout);
+			}
+
+			// Set a new timeout to clear the selections
+			const timeoutDuration = config.get<number>('selectionTimeout', 1000);
+			selectionTimeout = setTimeout(() => {
+				clearSelections();
+			}, timeoutDuration);
+		}
+	};
 
 	// Calculate position adjustment based on line deletion
 	const calculatePositionAdjustment = (
@@ -224,9 +293,9 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		// If change is on the same line as position
 		if (changeStart.line === position.line) {
 			const deletedText = originalDoc.getText(new vscode.Range(changeStart, changeEnd));
-			const characterDelta = changeText.length - deletedText.length;
+			const newTextLength = changeText.length - deletedText.length;
 			if (changeStart.character < position.character) {
-				return position.translate(0, characterDelta);
+				return position.translate(0, newTextLength);
 			}
 		}
 
@@ -265,7 +334,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 				// Calculate the change in text length
 				const oldTextLength = changeEnd.character - changeStart.character;
 				const newTextLength = change.text.length;
-				const lineDelta = changeLines.length - 1;
+				const lineDelta = changeLineCount;
 
 				// If it's a new line insertion within selection
 				if (lineDelta > 0 && isWithinSelection) {
@@ -321,6 +390,9 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		// Update tempTab's originalSelection
 		tempTab.originalSelection = originalSelection;
 
+		// Update selections in both editors
+		updateEditorSelections();
+
 		// Trigger debounced autosave
 		debouncedAutosave();
 	};
@@ -347,6 +419,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			await processPendingChanges();
 			processingTimeout = null;
 			isUpdating = false;
+			updateEditorSelections();
 		}, 10);
 	});
 
@@ -379,6 +452,9 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		// Update tempTab's originalSelection
 		tempTab.originalSelection = originalSelection;
 
+		// Update selections while typing
+		updateEditorSelections();
+
 		// Trigger debounced autosave
 		debouncedAutosave();
 
@@ -404,6 +480,14 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	});
 
+	// Track active editor changes to update selections
+	const activeEditorHandler = vscode.window.onDidChangeActiveTextEditor(() => {
+		updateEditorSelections();
+	});
+
 	// Add all listeners to the tempTab's disposables
-	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler);
+	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler, activeEditorHandler);
+
+	// Initial selection update
+	updateEditorSelections();
 }
