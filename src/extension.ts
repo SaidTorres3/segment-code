@@ -155,18 +155,6 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(saveListener);
 }
 
-export function deactivate() {
-	// Clean up all active temporary tabs on extension deactivation
-	activeTempTabs.forEach(async (tempTab) => {
-		try {
-			await unlinkAsync(tempTab.tempFileName);
-		} catch (error) {
-			console.error(`Failed to delete temporary file during deactivation: ${error}`);
-		}
-		tempTab.disposables.forEach(disposable => disposable.dispose());
-	});
-}
-
 // Helper function to get file extension from a URI
 function getFileExtension(uri: vscode.Uri): string | null {
 	const ext = path.extname(uri.fsPath);
@@ -461,19 +449,32 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		isUpdating = false;
 	});
 
-	// Handle closing of the extracted document
-	const closeHandler = vscode.window.onDidChangeVisibleTextEditors(async (editors) => {
-		const isExtractedDocVisible = editors.some(editor =>
-			editor.document.uri.toString() === extractedDoc.uri.toString());
+	const closeHandler = vscode.window.onDidChangeVisibleTextEditors(async () => {
+		const allTabs = vscode.window.tabGroups.all.map(group => group.tabs).flat();
+
+		// Convert the temp file path to a vscode URI for a more accurate comparison
+		const tempFileUri = vscode.Uri.file(tempTab.tempFileName);
+
+		// Check if the temporary file is still open in any of the tabs
+		const isExtractedDocVisible = allTabs.some(tab => {
+			const tabUri = tab.input instanceof vscode.TabInputText ? tab.input.uri : null;
+			return tabUri && tabUri.toString().toLowerCase() === tempFileUri.toString().toLowerCase();
+		});
 
 		if (!isExtractedDocVisible) {
 			tempTab.isClosed = true;
 			tempTab.disposables.forEach(disposable => disposable.dispose());
 
-			try {
-				await unlinkAsync(tempTab.tempFileName);
-			} catch (error) {
-				vscode.window.showErrorMessage(`Failed to delete temporary file: ${error}`);
+			// Check if the temporary file still exists before attempting to delete
+			if (fs.existsSync(tempTab.tempFileName)) {
+				try {
+					await unlinkAsync(tempTab.tempFileName);
+					console.log(`Temporary file ${tempTab.tempFileName} deleted successfully.`);
+				} catch (error) {
+					vscode.window.showErrorMessage(`Failed to delete temporary file: ${error}`);
+				}
+			} else {
+				console.log(`Temporary file ${tempTab.tempFileName} does not exist.`);
 			}
 
 			activeTempTabs.delete(tempTab.originalUri);
@@ -486,8 +487,20 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 	});
 
 	// Add all listeners to the tempTab's disposables
-	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler, activeEditorHandler);
+	tempTab.disposables.push(originalToExtracted, extractedToOriginal, activeEditorHandler, closeHandler);
 
 	// Initial selection update
 	updateEditorSelections();
+}
+
+export function deactivate() {
+	// Clean up all active temporary tabs on extension deactivation
+	activeTempTabs.forEach(async (tempTab) => {
+		try {
+			await unlinkAsync(tempTab.tempFileName);
+		} catch (error) {
+			console.error(`Failed to delete temporary file during deactivation: ${error}`);
+		}
+		tempTab.disposables.forEach(disposable => disposable.dispose());
+	});
 }
