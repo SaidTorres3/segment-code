@@ -11,7 +11,8 @@
 - No longer required the minimum of 1 character to sync.
 - Updated README.md.
 - Replaced gifs with videos.
-- Added configurable settings: showSelectionWhileTyping & selectionTimeout
+- Improved syncronization.
+- Changed the highlight methodology.
 
 ## [v2.0.1]
 

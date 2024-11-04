@@ -16,6 +16,12 @@ const debounceTimers: Map<string, NodeJS.Timeout> = new Map();
 // Define a debounce delay in milliseconds
 const DEBOUNCE_DELAY = 10;
 
+// Define decoration types for original editor
+const originalDecorationType = vscode.window.createTextEditorDecorationType({
+	backgroundColor: 'rgba(135,206,250, 0.3)', // Light sky blue with transparency
+	borderRadius: '2px',
+});
+
 // Interface to store temporary tab information
 interface TempTab {
 	tempFileName: string;
@@ -24,7 +30,7 @@ interface TempTab {
 	disposables: vscode.Disposable[];
 	isProgrammaticSave: boolean;
 	isClosed: boolean;
-	originalSelection: vscode.Selection;
+	originalRange: vscode.Range; // Changed from Selection to Range
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -118,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
 				disposables: [],
 				isProgrammaticSave: false,
 				isClosed: false,
-				originalSelection: selection, // Store the original selection
+				originalRange: selection, // Changed from Selection to Range
 			};
 
 			activeTempTabs.set(originalUri, tempTab);
@@ -131,6 +137,9 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
+
+	// Register decoration types for disposal
+	context.subscriptions.push(originalDecorationType);
 
 	// Global listener for save events
 	const saveListener = vscode.workspace.onDidSaveTextDocument(async (doc) => {
@@ -176,10 +185,9 @@ function debounce(func: (...args: any[]) => void, delay: number) {
 
 function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.TextDocument, tempTab: TempTab) {
 	let isUpdating = false;
-	let originalSelection = tempTab.originalSelection;
+	let originalRange = tempTab.originalRange;
 	let pendingChanges: vscode.TextDocumentContentChangeEvent[] = [];
 	let processingTimeout: NodeJS.Timeout | null = null;
-	let selectionTimeout: NodeJS.Timeout | null = null;
 
 	// Debounce the autosave function with a delay of 300ms
 	const debouncedAutosave = debounce(async () => {
@@ -195,73 +203,38 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	}, 300);
 
-	// Helper function to clear selections in both editors
-	const clearSelections = () => {
+	// Function to update decorations
+	const updateDecorations = () => {
 		const originalEditor = vscode.window.visibleTextEditors.find(
 			editor => editor.document.uri.toString() === originalDoc.uri.toString()
 		);
-		const extractedEditor = vscode.window.visibleTextEditors.find(
-			editor => editor.document.uri.toString() === extractedDoc.uri.toString()
-		);
+		// No need to find extractedEditor since we're not using decorations there
 
-		if (originalEditor && !originalEditor.selection.isEmpty) {
-			const activePosition = originalEditor.selection.active;
-			originalEditor.selection = new vscode.Selection(activePosition, activePosition);
-		}
+		if (originalEditor) {
+			// Remove existing decorations
+			originalEditor.setDecorations(originalDecorationType, []);
 
-		if (extractedEditor && !extractedEditor.selection.isEmpty) {
-			const activePosition = extractedEditor.selection.active;
-			extractedEditor.selection = new vscode.Selection(activePosition, activePosition);
+			// Define new decoration ranges
+			const originalRangeDeco = new vscode.Range(originalRange.start, originalRange.end);
+
+			// Apply new decorations
+			originalEditor.setDecorations(originalDecorationType, [originalRangeDeco]);
 		}
 	};
 
-	// Helper function to update selections in both editors
-	const updateEditorSelections = () => {
-		// Check if the feature is enabled in settings
-		const config = vscode.workspace.getConfiguration('separate');
-		if (!config.get('showSelectionWhileTyping', true)) {
-			return;
-		}
-
+	// Function to clear decorations
+	const clearDecorations = () => {
 		const originalEditor = vscode.window.visibleTextEditors.find(
 			editor => editor.document.uri.toString() === originalDoc.uri.toString()
 		);
-		const extractedEditor = vscode.window.visibleTextEditors.find(
-			editor => editor.document.uri.toString() === extractedDoc.uri.toString()
-		);
 
-		if (originalEditor && extractedEditor) {
-			// Get the active editor
-			const activeEditor = vscode.window.activeTextEditor;
-			if (!activeEditor) return;
-
-			const isOriginalActive = activeEditor.document.uri.toString() === originalDoc.uri.toString();
-			const isExtractedActive = activeEditor.document.uri.toString() === extractedDoc.uri.toString();
-
-			if (isOriginalActive) {
-				// When editing original, highlight the corresponding text in extracted
-				const fullRange = new vscode.Range(
-					extractedDoc.positionAt(0),
-					extractedDoc.positionAt(extractedDoc.getText().length)
-				);
-				extractedEditor.selection = new vscode.Selection(fullRange.start, fullRange.end);
-			} else if (isExtractedActive) {
-				// When editing extracted, highlight the corresponding text in original
-				originalEditor.selection = originalSelection;
-			}
-
-			// Clear the previous timeout if it exists
-			if (selectionTimeout) {
-				clearTimeout(selectionTimeout);
-			}
-
-			// Set a new timeout to clear the selections
-			const timeoutDuration = config.get<number>('selectionTimeout', 1000);
-			selectionTimeout = setTimeout(() => {
-				clearSelections();
-			}, timeoutDuration);
+		if (originalEditor) {
+			originalEditor.setDecorations(originalDecorationType, []);
 		}
 	};
+
+	// Initially apply decorations
+	updateDecorations();
 
 	// Calculate position adjustment based on line deletion
 	const calculatePositionAdjustment = (
@@ -303,8 +276,8 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		const changes = [...pendingChanges];
 		pendingChanges = [];
 
-		let newStart = originalSelection.start;
-		let newEnd = originalSelection.end;
+		let newStart = originalRange.start;
+		let newEnd = originalRange.end;
 
 		for (const change of changes) {
 			const changeStart = change.range.start;
@@ -313,23 +286,23 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			const changeLineCount = changeLines.length - 1;
 			const lastLineLength = changeLines[changeLines.length - 1].length;
 
-			// Check if change is within selection
-			const isWithinSelection = isPositionWithinRange(changeStart, originalSelection.start, originalSelection.end);
-			const isAtSelectionEnd = changeStart.line === originalSelection.end.line &&
-				Math.abs(changeStart.character - originalSelection.end.character) <= 1;
+			// Check if change is within the original range
+			const isWithinRange = isPositionWithinRange(changeStart, originalRange.start, originalRange.end);
+			const isAtRangeEnd = changeStart.line === originalRange.end.line &&
+				Math.abs(changeStart.character - originalRange.end.character) <= 1;
 
-			if (isWithinSelection || isAtSelectionEnd) {
+			if (isWithinRange || isAtRangeEnd) {
 				// Calculate the change in text length
 				const oldTextLength = changeEnd.character - changeStart.character;
 				const newTextLength = change.text.length;
 				const lineDelta = changeLineCount;
 
-				// If it's a new line insertion within selection
-				if (lineDelta > 0 && isWithinSelection) {
+				// If it's a new line insertion within range
+				if (lineDelta > 0 && isWithinRange) {
 					// Adjust the end position based on new lines added
 					newEnd = newEnd.translate(lineDelta, lastLineLength);
-				} else if (isAtSelectionEnd) {
-					// For changes at selection end
+				} else if (isAtRangeEnd) {
+					// For changes at range end
 					newEnd = newEnd.translate(
 						changeLineCount,
 						changeLineCount === 0 ?
@@ -338,11 +311,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 					);
 				}
 			} else {
-				// Handle changes outside selection
+				// Handle changes outside the original range
 				newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
 				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
 
-				// Additional check for changes that affect the selection content
+				// Additional check for changes that affect the range content
 				if (changeStart.isBeforeOrEqual(newEnd) && changeEnd.isAfterOrEqual(newStart)) {
 					if (changeStart.isBefore(newStart)) {
 						newStart = changeStart;
@@ -360,11 +333,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			}
 		}
 
-		// Update selection with new positions
-		originalSelection = new vscode.Selection(newStart, newEnd);
+		// Update the original range with new positions
+		originalRange = new vscode.Range(newStart, newEnd);
 
 		// Get the new text from the original and update the extracted document
-		const newText = originalDoc.getText(originalSelection);
+		const newText = originalDoc.getText(originalRange);
 
 		// Create a workspace edit to update the extracted document
 		const edit = new vscode.WorkspaceEdit();
@@ -375,11 +348,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		edit.replace(extractedDoc.uri, fullRange, newText);
 		await vscode.workspace.applyEdit(edit);
 
-		// Update tempTab's originalSelection
-		tempTab.originalSelection = originalSelection;
+		// Update tempTab's originalRange
+		tempTab.originalRange = originalRange;
 
-		// Update selections in both editors
-		updateEditorSelections();
+		// Update decorations with the new range
+		updateDecorations();
 
 		// Trigger debounced autosave
 		debouncedAutosave();
@@ -407,7 +380,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			await processPendingChanges();
 			processingTimeout = null;
 			isUpdating = false;
-			updateEditorSelections();
+			updateDecorations();
 		}, 10);
 	});
 
@@ -423,25 +396,25 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		const newText = extractedDoc.getText();
 		const newLines = newText.split('\n');
 
-		// Replace the selection in the original document with the new text
+		// Replace the text in the original document within the original range
 		const edit = new vscode.WorkspaceEdit();
-		edit.replace(originalDoc.uri, originalSelection, newText);
+		edit.replace(originalDoc.uri, originalRange, newText);
 		await vscode.workspace.applyEdit(edit);
 
 		// Calculate the new end position considering line breaks
 		const lineCount = newLines.length - 1;
 		const lastLineLength = newLines[newLines.length - 1].length;
-		const newEndPosition = originalSelection.start.translate(
+		const newEndPosition = originalRange.start.translate(
 			lineCount,
 			lineCount === 0 ? newText.length : lastLineLength
 		);
-		originalSelection = new vscode.Selection(originalSelection.start, newEndPosition);
+		originalRange = new vscode.Range(originalRange.start, newEndPosition);
 
-		// Update tempTab's originalSelection
-		tempTab.originalSelection = originalSelection;
+		// Update tempTab's originalRange
+		tempTab.originalRange = originalRange;
 
-		// Update selections while typing
-		updateEditorSelections();
+		// Update decorations with the new range
+		updateDecorations();
 
 		// Trigger debounced autosave
 		debouncedAutosave();
@@ -463,6 +436,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 		if (!isExtractedDocVisible) {
 			tempTab.isClosed = true;
+			clearDecorations();
 			tempTab.disposables.forEach(disposable => disposable.dispose());
 
 			// Check if the temporary file still exists before attempting to delete
@@ -481,16 +455,10 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	});
 
-	// Track active editor changes to update selections
-	const activeEditorHandler = vscode.window.onDidChangeActiveTextEditor(() => {
-		updateEditorSelections();
-	});
-
 	// Add all listeners to the tempTab's disposables
-	tempTab.disposables.push(originalToExtracted, extractedToOriginal, activeEditorHandler, closeHandler);
+	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler);
 
-	// Initial selection update
-	updateEditorSelections();
+	// No need to update decorations on active editor changes since selections are no longer used
 }
 
 export function deactivate() {
@@ -503,4 +471,13 @@ export function deactivate() {
 		}
 		tempTab.disposables.forEach(disposable => disposable.dispose());
 	});
+
+	// Clear all decorations
+	const visibleEditors = vscode.window.visibleTextEditors;
+	visibleEditors.forEach(editor => {
+		editor.setDecorations(originalDecorationType, []);
+	});
+
+	// Dispose decoration types
+	originalDecorationType.dispose();
 }

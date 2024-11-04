@@ -47,22 +47,7 @@
         "when": "editorTextFocus && editorHasSelection",
         "mac": "cmd+alt+shift+s"
       }
-    ],
-    "configuration": {
-      "title": "Separate Code Settings",
-      "properties": {
-        "separateCode.showSelectionWhileTyping": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show synchronized selection in the unused tab while typing with a selection."
-        },
-        "separateCode.selectionTimeout": {
-          "type": "number",
-          "default": 1000,
-          "description": "How long (in milliseconds) to show the selection after typing (when showSelectionWhileTyping is enabled)."
-        }
-      }
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
