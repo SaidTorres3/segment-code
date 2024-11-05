@@ -271,7 +271,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 	// Process pending changes in a batch
 	const processPendingChanges = async () => {
-		if (pendingChanges.length === 0) return;
+		if (!originalDoc || originalDoc.isClosed || pendingChanges.length === 0) return;
 
 		const changes = [...pendingChanges];
 		pendingChanges = [];
@@ -474,6 +474,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			clearDecorations();
 			tempTab.disposables.forEach(disposable => disposable.dispose());
 			vscode.window.showInformationMessage('Original document was closed. Closing the extracted document.');
+			await unlinkAsync(tempTab.tempFileName);
 
 			// Close the extracted document
 			const extractedEditor = vscode.window.visibleTextEditors.find(
