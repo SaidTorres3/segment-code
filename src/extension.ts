@@ -455,10 +455,44 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	});
 
-	// Add all listeners to the tempTab's disposables
-	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler);
+	// Listener for when the original document is closed
+	const originalCloseHandler = vscode.window.onDidChangeVisibleTextEditors(async () => {
+		const allTabs = vscode.window.tabGroups.all.map(group => group.tabs).flat();
 
-	// No need to update decorations on active editor changes since selections are no longer used
+		// Convert the original document URI for comparison
+		const originalDocUri = vscode.Uri.file(originalDoc.uri.fsPath);
+
+		// Check if the original document is still open in any of the tabs
+		const isOriginalDocVisible = allTabs.some(tab => {
+			const tabUri = tab.input instanceof vscode.TabInputText ? tab.input.uri : null;
+			return tabUri && tabUri.toString().toLowerCase() === originalDocUri.toString().toLowerCase();
+		});
+
+		// If the original document is no longer visible, perform the cleanup
+		if (!isOriginalDocVisible) {
+			tempTab.isClosed = true;
+			clearDecorations();
+			tempTab.disposables.forEach(disposable => disposable.dispose());
+			vscode.window.showInformationMessage('Original document was closed. Closing the extracted document.');
+
+			// Close the extracted document
+			const extractedEditor = vscode.window.visibleTextEditors.find(
+				editor => editor.document.uri.toString() === extractedDoc.uri.toString()
+			);
+			if (extractedEditor) {
+				vscode.window.showTextDocument(extractedEditor.document, { preview: false }).then(() => {
+					vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+				});
+			}
+
+			// Remove the temporary tab from activeTempTabs
+			activeTempTabs.delete(tempTab.originalUri);
+		}
+	});
+
+
+	// Add all listeners to the tempTab's disposables
+	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler, originalCloseHandler);
 }
 
 export function deactivate() {
