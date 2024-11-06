@@ -201,7 +201,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		} finally {
 			tempTab.isProgrammaticSave = false;
 		}
-	}, 300);
+	}, 630);
 
 	// Function to update decorations
 	const updateDecorations = () => {
