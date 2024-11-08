@@ -191,10 +191,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 	// Debounce the autosave function with a delay of 300ms
 	const debouncedAutosave = debounce(async () => {
-		if (tempTab.isClosed) { return; }
+		if (tempTab.isClosed) return;
 
 		tempTab.isProgrammaticSave = true;
 		try {
+			if (tempTab.isClosed) return; // Double-check right before saving
 			await extractedDoc.save();
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to save temporary file: ${error}`);
@@ -203,12 +204,12 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	}, 630);
 
+
 	// Function to update decorations
 	const updateDecorations = () => {
 		const originalEditor = vscode.window.visibleTextEditors.find(
 			editor => editor.document.uri.toString() === originalDoc.uri.toString()
 		);
-		// No need to find extractedEditor since we're not using decorations there
 
 		if (originalEditor) {
 			// Remove existing decorations
