@@ -191,11 +191,11 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 	// Debounce the autosave function with a delay of 300ms
 	const debouncedAutosave = debounce(async () => {
-		if (tempTab.isClosed) return;
+		if (tempTab.isClosed) { return; }
 
 		tempTab.isProgrammaticSave = true;
 		try {
-			if (tempTab.isClosed) return; // Double-check right before saving
+			if (tempTab.isClosed) { return; } // Double-check right before saving
 			await extractedDoc.save();
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to save temporary file: ${error}`);
@@ -272,7 +272,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 	// Process pending changes in a batch
 	const processPendingChanges = async () => {
-		if (!originalDoc || originalDoc.isClosed || pendingChanges.length === 0) return;
+		if (!originalDoc || originalDoc.isClosed || pendingChanges.length === 0) { return; }
 
 		const changes = [...pendingChanges];
 		pendingChanges = [];
