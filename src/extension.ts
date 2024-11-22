@@ -63,22 +63,45 @@ export function activate(context: vscode.ExtensionContext) {
 		const timer = setTimeout(async () => {
 			debounceTimers.delete(originalUri);
 
-			// Check if the temp tab was previously closed by the user
+			// Handle existing temp tabs
 			if (activeTempTabs.has(originalUri)) {
 				const existingTempTab = activeTempTabs.get(originalUri)!;
-				if (existingTempTab.isClosed) {
-					// Do not recreate the temp tab if it was closed by the user
-					return;
+
+				if (!existingTempTab.isClosed) {
+					// Close the existing temp tab programmatically
+					const allTabs = vscode.window.tabGroups.all.flatMap(group => group.tabs);
+
+					const tempFileUri = existingTempTab.tempUri;
+
+					const tabToClose = allTabs.find(tab => {
+						const input = tab.input;
+						if (input instanceof vscode.TabInputText) {
+							return input.uri.toString() === tempFileUri.toString();
+						}
+						return false;
+					});
+
+					if (tabToClose) {
+						try {
+							await vscode.window.tabGroups.close(tabToClose);
+						} catch (error) {
+							vscode.window.showErrorMessage(`Failed to close existing temporary tab: ${error}`);
+						}
+					}
+
+					// Clean up associated resources
+					existingTempTab.disposables.forEach(disposable => disposable.dispose());
+					try {
+						if (fs.existsSync(existingTempTab.tempFileName)) {
+							await unlinkAsync(existingTempTab.tempFileName);
+						}
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to delete previous temporary file: ${error}`);
+					}
+
+					existingTempTab.isClosed = true;
+					activeTempTabs.delete(originalUri);
 				}
-				// Dispose of existing TempTab if it exists
-				existingTempTab.disposables.forEach(disposable => disposable.dispose());
-				// Clean up temporary files
-				try {
-					await unlinkAsync(existingTempTab.tempFileName);
-				} catch (error) {
-					vscode.window.showErrorMessage(`Failed to delete previous temporary file: ${error}`);
-				}
-				activeTempTabs.delete(originalUri);
 			}
 
 			// Determine the original file extension
@@ -124,7 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
 				disposables: [],
 				isProgrammaticSave: false,
 				isClosed: false,
-				originalRange: selection, // Changed from Selection to Range
+				originalRange: selection,
 			};
 
 			activeTempTabs.set(originalUri, tempTab);
@@ -132,6 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// Sync changes between original and extracted documents
 			syncDocuments(editor.document, newDoc, tempTab);
 		}, DEBOUNCE_DELAY);
+
 
 		debounceTimers.set(originalUri, timer);
 	});
