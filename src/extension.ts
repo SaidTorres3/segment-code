@@ -219,15 +219,14 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 		tempTab.isProgrammaticSave = true;
 		try {
-			if (tempTab.isClosed) { return; } // Double-check right before saving
+			if (tempTab.isClosed) { return; }
 			await extractedDoc.save();
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to save temporary file: ${error}`);
 		} finally {
 			tempTab.isProgrammaticSave = false;
 		}
-	}, 630);
-
+	}, 300);
 
 	// Function to update decorations
 	const updateDecorations = () => {
@@ -236,13 +235,8 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		);
 
 		if (originalEditor) {
-			// Remove existing decorations
 			originalEditor.setDecorations(originalDecorationType, []);
-
-			// Define new decoration ranges
 			const originalRangeDeco = new vscode.Range(originalRange.start, originalRange.end);
-
-			// Apply new decorations
 			originalEditor.setDecorations(originalDecorationType, [originalRangeDeco]);
 		}
 	};
@@ -258,43 +252,25 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	};
 
-	// Initially apply decorations
-	updateDecorations();
-
-	// Calculate position adjustment based on line deletion
+	// Function to calculate position adjustment
 	const calculatePositionAdjustment = (
 		position: vscode.Position,
 		changeStart: vscode.Position,
 		changeEnd: vscode.Position,
 		changeText: string
 	): vscode.Position => {
-		// If change is before the position's line, adjust the line number
-		if (changeEnd.line < position.line) {
-			const deletedLines = changeEnd.line - changeStart.line;
-			const addedLines = changeText.split('\n').length - 1;
-			const lineDelta = addedLines - deletedLines;
-			return position.translate(lineDelta, 0);
+		const changeLineDelta = changeText.split('\n').length - (changeEnd.line - changeStart.line + 1);
+		if (position.isAfter(changeEnd)) {
+			return position.translate(changeLineDelta, 0);
+		} else if (position.isAfterOrEqual(changeStart)) {
+			const newCharacter = position.character +
+				(changeText.length - (changeEnd.character - changeStart.character));
+			return new vscode.Position(position.line, Math.max(newCharacter, 0));
 		}
-
-		// If change is on the same line as position
-		if (changeStart.line === position.line) {
-			const deletedText = originalDoc.getText(new vscode.Range(changeStart, changeEnd));
-			const newTextLength = changeText.length - deletedText.length;
-			if (changeStart.character < position.character) {
-				return position.translate(0, newTextLength);
-			}
-		}
-
 		return position;
 	};
 
-	// Check if a position is within a range
-	const isPositionWithinRange = (position: vscode.Position, start: vscode.Position, end: vscode.Position): boolean => {
-		return (position.line > start.line || (position.line === start.line && position.character >= start.character)) &&
-			(position.line < end.line || (position.line === end.line && position.character <= end.character));
-	};
-
-	// Process pending changes in a batch
+	// Function to process pending changes
 	const processPendingChanges = async () => {
 		if (!originalDoc || originalDoc.isClosed || pendingChanges.length === 0) { return; }
 
@@ -307,64 +283,31 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		for (const change of changes) {
 			const changeStart = change.range.start;
 			const changeEnd = change.range.end;
-			const changeLines = change.text.split('\n');
-			const changeLineCount = changeLines.length - 1;
-			const lastLineLength = changeLines[changeLines.length - 1].length;
+			const isInsertion = change.text.length > 0;
 
-			// Check if change is within the original range
-			const isWithinRange = isPositionWithinRange(changeStart, originalRange.start, originalRange.end);
-			const isAtRangeEnd = changeStart.line === originalRange.end.line &&
-				Math.abs(changeStart.character - originalRange.end.character) <= 1;
-
-			if (isWithinRange || isAtRangeEnd) {
-				// Calculate the change in text length
-				const oldTextLength = changeEnd.character - changeStart.character;
-				const newTextLength = change.text.length;
-				const lineDelta = changeLineCount;
-
-				// If it's a new line insertion within range
-				if (lineDelta > 0 && isWithinRange) {
-					// Adjust the end position based on new lines added
-					newEnd = newEnd.translate(lineDelta, lastLineLength);
-				} else if (isAtRangeEnd) {
-					// For changes at range end
-					newEnd = newEnd.translate(
-						changeLineCount,
-						changeLineCount === 0 ?
-							newEnd.character + newTextLength - oldTextLength :
-							lastLineLength
-					);
-				}
-			} else {
-				// Handle changes outside the original range
+			if (changeEnd.isBeforeOrEqual(newStart)) {
 				newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
 				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
+			} else if (changeStart.isAfterOrEqual(newEnd)) {
+				// Change is outside the range; no adjustment needed
+			} else {
+				// Change overlaps with the range
+				if (changeStart.isBefore(newStart)) {
+					newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
+				}
+				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
 
-				// Additional check for changes that affect the range content
-				if (changeStart.isBeforeOrEqual(newEnd) && changeEnd.isAfterOrEqual(newStart)) {
-					if (changeStart.isBefore(newStart)) {
-						newStart = changeStart;
-					}
-
-					const endLineDelta = changeLineCount;
-					const endCharDelta = changeLineCount === 0 ?
-						change.text.length - (changeEnd.character - changeStart.character) :
-						lastLineLength;
-
-					if (changeEnd.translate(0, endCharDelta).isAfter(newEnd)) {
-						newEnd = changeEnd.translate(0, endCharDelta);
-					}
+				// If it's an insertion, expand the range
+				if (isInsertion) {
+					newEnd = newEnd.translate(0, change.text.length);
 				}
 			}
 		}
 
-		// Update the original range with new positions
 		originalRange = new vscode.Range(newStart, newEnd);
 
-		// Get the new text from the original and update the extracted document
+		// Update the extracted document with the new content
 		const newText = originalDoc.getText(originalRange);
-
-		// Create a workspace edit to update the extracted document
 		const edit = new vscode.WorkspaceEdit();
 		const fullRange = new vscode.Range(
 			extractedDoc.positionAt(0),
@@ -376,14 +319,14 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		// Update tempTab's originalRange
 		tempTab.originalRange = originalRange;
 
-		// Update decorations with the new range
+		// Update decorations
 		updateDecorations();
 
 		// Trigger debounced autosave
 		debouncedAutosave();
 	};
 
-	// Track changes in the original document and sync to the extracted document
+	// Listener for changes in the original document
 	const originalToExtracted = vscode.workspace.onDidChangeTextDocument(async originalEvent => {
 		if (tempTab.isClosed || isUpdating ||
 			originalEvent.document.uri.toString() !== originalDoc.uri.toString()) {
@@ -392,15 +335,12 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 		isUpdating = true;
 
-		// Add new changes to pending changes
 		pendingChanges.push(...originalEvent.contentChanges);
 
-		// Clear existing timeout if any
 		if (processingTimeout) {
 			clearTimeout(processingTimeout);
 		}
 
-		// Process changes after a short delay to batch multiple rapid changes
 		processingTimeout = setTimeout(async () => {
 			await processPendingChanges();
 			processingTimeout = null;
@@ -409,7 +349,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}, 10);
 	});
 
-	// Track changes in the extracted document and sync to the original document
+	// Listener for changes in the extracted document
 	const extractedToOriginal = vscode.workspace.onDidChangeTextDocument(async extractedEvent => {
 		if (tempTab.isClosed || isUpdating ||
 			extractedEvent.document.uri.toString() !== extractedDoc.uri.toString()) {
@@ -419,41 +359,29 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		isUpdating = true;
 
 		const newText = extractedDoc.getText();
-		const newLines = newText.split('\n');
-
-		// Replace the text in the original document within the original range
 		const edit = new vscode.WorkspaceEdit();
 		edit.replace(originalDoc.uri, originalRange, newText);
 		await vscode.workspace.applyEdit(edit);
 
-		// Calculate the new end position considering line breaks
-		const lineCount = newLines.length - 1;
-		const lastLineLength = newLines[newLines.length - 1].length;
-		const newEndPosition = originalRange.start.translate(
-			lineCount,
-			lineCount === 0 ? newText.length : lastLineLength
+		originalRange = new vscode.Range(
+			originalRange.start,
+			originalRange.start.translate(
+				newText.split('\n').length - 1,
+				newText.length
+			)
 		);
-		originalRange = new vscode.Range(originalRange.start, newEndPosition);
 
-		// Update tempTab's originalRange
 		tempTab.originalRange = originalRange;
-
-		// Update decorations with the new range
 		updateDecorations();
-
-		// Trigger debounced autosave
 		debouncedAutosave();
 
 		isUpdating = false;
 	});
 
+	// Listener for closing the extracted document
 	const closeHandler = vscode.window.onDidChangeVisibleTextEditors(async () => {
-		const allTabs = vscode.window.tabGroups.all.map(group => group.tabs).flat();
-
-		// Convert the temp file path to a vscode URI for a more accurate comparison
+		const allTabs = vscode.window.tabGroups.all.flatMap(group => group.tabs);
 		const tempFileUri = vscode.Uri.file(tempTab.tempFileName);
-
-		// Check if the temporary file is still open in any of the tabs
 		const isExtractedDocVisible = allTabs.some(tab => {
 			const tabUri = tab.input instanceof vscode.TabInputText ? tab.input.uri : null;
 			return tabUri && tabUri.toString().toLowerCase() === tempFileUri.toString().toLowerCase();
@@ -464,61 +392,19 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			clearDecorations();
 			tempTab.disposables.forEach(disposable => disposable.dispose());
 
-			// Check if the temporary file still exists before attempting to delete
 			if (fs.existsSync(tempTab.tempFileName)) {
 				try {
 					await unlinkAsync(tempTab.tempFileName);
-					console.log(`Temporary file ${tempTab.tempFileName} deleted successfully.`);
 				} catch (error) {
 					vscode.window.showErrorMessage(`Failed to delete temporary file: ${error}`);
 				}
-			} else {
-				console.log(`Temporary file ${tempTab.tempFileName} does not exist.`);
 			}
 
 			activeTempTabs.delete(tempTab.originalUri);
 		}
 	});
 
-	// Listener for when the original document is closed
-	const originalCloseHandler = vscode.window.onDidChangeVisibleTextEditors(async () => {
-		const allTabs = vscode.window.tabGroups.all.map(group => group.tabs).flat();
-
-		// Convert the original document URI for comparison
-		const originalDocUri = vscode.Uri.file(originalDoc.uri.fsPath);
-
-		// Check if the original document is still open in any of the tabs
-		const isOriginalDocVisible = allTabs.some(tab => {
-			const tabUri = tab.input instanceof vscode.TabInputText ? tab.input.uri : null;
-			return tabUri && tabUri.toString().toLowerCase() === originalDocUri.toString().toLowerCase();
-		});
-
-		// If the original document is no longer visible, perform the cleanup
-		if (!isOriginalDocVisible) {
-			tempTab.isClosed = true;
-			clearDecorations();
-			tempTab.disposables.forEach(disposable => disposable.dispose());
-			vscode.window.showInformationMessage('Original document was closed. Closing the extracted document.');
-			await unlinkAsync(tempTab.tempFileName);
-
-			// Close the extracted document
-			const extractedEditor = vscode.window.visibleTextEditors.find(
-				editor => editor.document.uri.toString() === extractedDoc.uri.toString()
-			);
-			if (extractedEditor) {
-				vscode.window.showTextDocument(extractedEditor.document, { preview: false }).then(() => {
-					vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-				});
-			}
-
-			// Remove the temporary tab from activeTempTabs
-			activeTempTabs.delete(tempTab.originalUri);
-		}
-	});
-
-
-	// Add all listeners to the tempTab's disposables
-	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler, originalCloseHandler);
+	tempTab.disposables.push(originalToExtracted, extractedToOriginal, closeHandler);
 }
 
 export function deactivate() {
