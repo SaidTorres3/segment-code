@@ -154,8 +154,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 			// Sync changes between original and extracted documents
 			syncDocuments(editor.document, newDoc, tempTab);
-		}, DEBOUNCE_DELAY);
 
+			// Immediately update decorations for the selection
+			const originalEditor = vscode.window.visibleTextEditors.find(
+				editor => editor.document.uri.toString() === originalUri
+			);
+
+			if (originalEditor) {
+				originalEditor.setDecorations(originalDecorationType, [selection]);
+			}
+		}, DEBOUNCE_DELAY);
 
 		debounceTimers.set(originalUri, timer);
 	});
@@ -252,26 +260,8 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 		}
 	};
 
-	// Function to calculate position adjustment
-	const calculatePositionAdjustment = (
-		position: vscode.Position,
-		changeStart: vscode.Position,
-		changeEnd: vscode.Position,
-		changeText: string
-	): vscode.Position => {
-		const changeLineDelta = changeText.split('\n').length - (changeEnd.line - changeStart.line + 1);
-		if (position.isAfter(changeEnd)) {
-			return position.translate(changeLineDelta, 0);
-		} else if (position.isAfterOrEqual(changeStart)) {
-			const newCharacter = position.character +
-				(changeText.length - (changeEnd.character - changeStart.character));
-			return new vscode.Position(position.line, Math.max(newCharacter, 0));
-		}
-		return position;
-	};
-
 	// Function to process pending changes
-	const processPendingChanges = async () => {
+	async function processPendingChanges() {
 		if (!originalDoc || originalDoc.isClosed || pendingChanges.length === 0) { return; }
 
 		const changes = [...pendingChanges];
@@ -285,21 +275,54 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 			const changeEnd = change.range.end;
 			const isInsertion = change.text.length > 0;
 
-			if (changeEnd.isBeforeOrEqual(newStart)) {
-				newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
-				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
-			} else if (changeStart.isAfterOrEqual(newEnd)) {
-				// Change is outside the range; no adjustment needed
-			} else {
-				// Change overlaps with the range
-				if (changeStart.isBefore(newStart)) {
-					newStart = calculatePositionAdjustment(newStart, changeStart, changeEnd, change.text);
-				}
-				newEnd = calculatePositionAdjustment(newEnd, changeStart, changeEnd, change.text);
+			// Check if change is before the selection
+			if (changeEnd.isBefore(newStart)) {
+				// Adjust both newStart and newEnd
+				const lineDelta = change.text.split('\n').length - 1 - (changeEnd.line - changeStart.line);
+				const charDelta = change.text.length - (changeEnd.character - changeStart.character);
 
-				// If it's an insertion, expand the range
+				newStart = newStart.translate(lineDelta, changeEnd.line === newStart.line ? charDelta : 0);
+				newEnd = newEnd.translate(lineDelta, changeEnd.line === newEnd.line ? charDelta : 0);
+			} else if (changeStart.isAfter(newEnd)) {
+				// Change is after the selection; no adjustment needed
+			} else {
+				// Change overlaps with or is adjacent to the selection
+				if (changeStart.isBefore(newStart)) {
+					const lineDelta = change.text.split('\n').length - 1 - (changeEnd.line - changeStart.line);
+					const charDelta = change.text.length - (changeEnd.character - changeStart.character);
+
+					newStart = newStart.translate(lineDelta, changeEnd.line === newStart.line ? charDelta : 0);
+				}
+				if (changeEnd.isAfter(newEnd)) {
+					// Adjust newEnd if the change extends beyond the current selection
+					const lineDelta = change.text.split('\n').length - 1 - (changeEnd.line - changeStart.line);
+					const charDelta = change.text.length - (changeEnd.character - changeStart.character);
+
+					newEnd = newEnd.translate(lineDelta, changeEnd.line === newEnd.line ? charDelta : 0);
+				} else {
+					// Adjust newEnd based on the change
+					const lineDelta = change.text.split('\n').length - 1 - (changeEnd.line - changeStart.line);
+					const charDelta = change.text.length - (changeEnd.character - changeStart.character);
+
+					newEnd = newEnd.translate(lineDelta, changeEnd.line === newEnd.line ? charDelta : 0);
+				}
+
+				// If it's an insertion adjacent to the selection, expand the selection
 				if (isInsertion) {
-					newEnd = newEnd.translate(0, change.text.length);
+					// Check if insertion is adjacent to the selection
+					if (changeStart.isEqual(newEnd) || changeEnd.isEqual(newStart)) {
+						const insertedLines = change.text.split('\n').length - 1;
+						const lastLine = change.text.split('\n').pop() || '';
+						const insertedChars = insertedLines > 0 ? lastLine.length : change.text.length;
+
+						if (changeStart.isEqual(newEnd)) {
+							// Insertion after the selection
+							newEnd = newEnd.translate(insertedLines, insertedLines > 0 ? insertedChars - newEnd.character : insertedChars);
+						} else if (changeEnd.isEqual(newStart)) {
+							// Insertion before the selection
+							newStart = newStart.translate(insertedLines, insertedLines > 0 ? insertedChars - newStart.character : insertedChars);
+						}
+					}
 				}
 			}
 		}
@@ -324,7 +347,7 @@ function syncDocuments(originalDoc: vscode.TextDocument, extractedDoc: vscode.Te
 
 		// Trigger debounced autosave
 		debouncedAutosave();
-	};
+	}
 
 	// Listener for changes in the original document
 	const originalToExtracted = vscode.workspace.onDidChangeTextDocument(async originalEvent => {
