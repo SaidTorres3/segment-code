@@ -34,20 +34,22 @@
 3. Select the code you want to extract.
 4. Right-click and choose "✂️ Separate Code".
 5. Edit the extracted code in the new synchronized tab.
+6. Save directly the changes in the original file by manually saving changes in the separate code.
+7. Close the separate code.
 
 ## 🎥 Showcase & Examples
 
 ### Basic Showcase Usage
 
-![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/showcase.gif)
+![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/videos/1.mp4)
 
 ### Easy Code Indentation
 
-![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-identation.gif)
+![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/2.mp4) 
 
 ### Code Refactoring
 
-![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-refactor.gif)
+![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/3.mp4)
 
 ## 🤝 Contributing
 

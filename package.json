@@ -8,7 +8,7 @@
     "email": "sesaid17@hotmail.com",
     "url": "https://github.com/SaidTorres3"
   },
-  "description": "VSCode extension that enables you to effortlessly extract portions of your code and edit them in a dedicated, synchronized tab. Experience real-time updates as your extracted code stays in sync with its original source, making code manipulation and refactoring a seamless and efficient process.",
+  "description": "Enables you to effortlessly extract portions of your code and edit them in a dedicated, synchronized tab. Experience real-time updates as your extracted code stays in sync with its original source, making code manipulation and refactoring a seamless and efficient process.",
   "icon": "icon.png",
   "repository": {
     "url": "https://github.com/SaidTorres3/separate-code"
