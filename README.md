@@ -40,24 +40,17 @@
 ## 🎥 Showcase & Examples
 
 ### Basic Showcase Usage
-<video controls>
-  <source src="https://saidtorres3.github.io/separate-code/videos/1.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+
+![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/1.gif)
 
 ### Easy Code Indentation
 
-<video controls>
-  <source src="https://saidtorres3.github.io/separate-code/videos/2.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/2.gif)
 
 ### Code Refactoring
 
-<video controls>
-  <source src="https://saidtorres3.github.io/separate-code/videos/3.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/3.gif)
+
 
 ## 🤝 Contributing
 

@@ -10,7 +10,7 @@
 - Disabled the creation of multiple synchronized tabs on a single file.
 - No longer required the minimum of 1 character to sync.
 - Updated README.md.
-- Replaced screenshots gifs with videos.
+- Removed screenshots from the package.
 - Improved syncronization.
 - Changed the highlight methodology.
 
