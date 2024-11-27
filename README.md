@@ -40,16 +40,24 @@
 ## 🎥 Showcase & Examples
 
 ### Basic Showcase Usage
-
-![Separate Code Basic Showcase Usage](https://saidtorres3.github.io/separate-code/videos/1.mp4)
+<video controls>
+  <source src="https://saidtorres3.github.io/separate-code/videos/1.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ### Easy Code Indentation
 
-![Code Indentation Showcase](https://saidtorres3.github.io/separate-code/videos/2.mp4) 
+<video controls>
+  <source src="https://saidtorres3.github.io/separate-code/videos/2.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ### Code Refactoring
 
-![Code Refactoring Showcase](https://saidtorres3.github.io/separate-code/videos/3.mp4)
+<video controls>
+  <source src="https://saidtorres3.github.io/separate-code/videos/3.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ## 🤝 Contributing
 
