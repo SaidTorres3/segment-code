@@ -41,15 +41,15 @@
 
 ### Basic Showcase Usage
 
-![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/videos/1.mp4)
+![Separate Code Basic Showcase Usage](https://saidtorres3.github.io/separate-code/videos/1.mp4)
 
 ### Easy Code Indentation
 
-![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/2.mp4) 
+![Code Indentation Showcase](https://saidtorres3.github.io/separate-code/videos/2.mp4) 
 
 ### Code Refactoring
 
-![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/3.mp4)
+![Code Refactoring Showcase](https://saidtorres3.github.io/separate-code/videos/3.mp4)
 
 ## 🤝 Contributing
 
