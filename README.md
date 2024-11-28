@@ -26,6 +26,8 @@
 - **🔄 Real-time Synchronization**: Changes in extracted code instantly reflect in the source file and vice versa.
 - **🛠️ Enhanced Refactoring**: Easily refactor methods, functions, or classes in isolated tabs.
 - **📊 Improved Code Management**: Organize and focus on specific code segments.
+- **⌨️ Keyboard Shortcut**: Use `Ctrl + Shift + Alt + S` to quickly separate code sections.
+
 
 ## 🚀 Getting Started
 
