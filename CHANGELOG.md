@@ -1,5 +1,19 @@
 # Change Log
 
+## [v3.0.0]
+
+- Rewrited the whole code.
+- Separate code do not show the saving dialog when it's closed.
+- If you save on the extracted code tab, it will save the changes in the original file.
+- Added shortcut ``Ctrl + Shift + Alt + S`` to separate code. (Configurable through File > Preferences > Keyboard Shortcuts)
+- Fix bug that when you delete lines before the extracted code in the original tab it would remove that amount of lines to the selection.
+- Disabled the creation of multiple synchronized tabs on a single file.
+- No longer required the minimum of 1 character to sync.
+- Updated README.md.
+- Removed screenshots from the package.
+- Improved syncronization.
+- Changed the highlight methodology.
+
 ## [v2.0.1]
 
 - Updated README.md.

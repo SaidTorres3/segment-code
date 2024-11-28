@@ -26,28 +26,31 @@
 - **🔄 Real-time Synchronization**: Changes in extracted code instantly reflect in the source file and vice versa.
 - **🛠️ Enhanced Refactoring**: Easily refactor methods, functions, or classes in isolated tabs.
 - **📊 Improved Code Management**: Organize and focus on specific code segments.
+- **⌨️ Keyboard Shortcut**: Use `Ctrl + Shift + Alt + S` to quickly separate code sections.
 
 ## 🚀 Getting Started
 
 1. Install **Separate Code** from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=SaidTorres3.separate-code).
 2. Open your project in VS Code.
 3. Select the code you want to extract.
-4. Right-click and choose "✂️ Separate Code".
+4. Right-click and choose ```✂️ Separate Code```.
 5. Edit the extracted code in the new synchronized tab.
+6. Save directly the changes in the original file by manually saving changes in the separate code.
+7. Close the separate code.
 
 ## 🎥 Showcase & Examples
 
 ### Basic Showcase Usage
 
-![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/showcase.gif)
+![Separate Code Basic Showcase Usage](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/1.gif)
 
 ### Easy Code Indentation
 
-![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-identation.gif)
+![Code Indentation Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/2.gif)
 
 ### Code Refactoring
 
-![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/main/screenshots/code-refactor.gif)
+![Code Refactoring Showcase](https://raw.githubusercontent.com/SaidTorres3/separate-code/refs/heads/gh-pages/screenshots/v3/3.gif)
 
 ## 🤝 Contributing
 
