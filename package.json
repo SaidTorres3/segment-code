@@ -19,9 +19,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCommand:extension.separate"
-  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
